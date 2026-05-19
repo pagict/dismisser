@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dismisser"
+version = "0.1.0"
+description = "Dismiss flashing desktop notifications when gaze dwells on the notification area."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "mediapipe==0.10.21",
+  "numpy>=1.26,<2",
+  "opencv-contrib-python>=4.11,<4.12",
+  "pyautogui>=0.9.54",
+  "pyobjc-framework-Cocoa>=12.1; platform_system == 'Darwin'",
+]
+
+[project.scripts]
+dismisser = "dismisser.main:main"
+dismisser-calibrate = "dismisser.calibration:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

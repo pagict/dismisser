@@ -1,0 +1,4 @@
+{"head_pitch": 0.5, "head_roll": 0.0, "head_yaw": -0.2, "raw_x": 0.3, "raw_y": 0.1, "target_x": 0.0, "target_y": 0.0}
+{"head_pitch": 0.5, "head_roll": 0.0, "head_yaw": 0.2, "raw_x": 0.7, "raw_y": 0.1, "target_x": 1.0, "target_y": 0.0}
+{"head_pitch": 0.8, "head_roll": 0.0, "head_yaw": -0.2, "raw_x": 0.3, "raw_y": 0.8, "target_x": 0.0, "target_y": 1.0}
+{"head_pitch": 0.8, "head_roll": 0.0, "head_yaw": 0.2, "raw_x": 0.7, "raw_y": 0.8, "target_x": 1.0, "target_y": 1.0}

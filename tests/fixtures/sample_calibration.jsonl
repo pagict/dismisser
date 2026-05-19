@@ -1,0 +1,4 @@
+{"raw_x": 0.1, "raw_y": 0.1, "target_x": 0.0, "target_y": 0.0}
+{"raw_x": 0.9, "raw_y": 0.1, "target_x": 1.0, "target_y": 0.0}
+{"raw_x": 0.1, "raw_y": 0.9, "target_x": 0.0, "target_y": 1.0}
+{"raw_x": 0.9, "raw_y": 0.9, "target_x": 1.0, "target_y": 1.0}
