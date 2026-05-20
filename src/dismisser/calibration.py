@@ -63,15 +63,17 @@ class CalibrationCollector:
             return 2
 
         tracker = MediaPipeGazeTracker(smoothing=1.0)
-        raw_history: deque[RawGazeSample] = deque(maxlen=max(3, self.config.samples_per_point))
+        target_sample_count = max(1, self.config.samples_per_point)
+        raw_history: deque[RawGazeSample] = deque(maxlen=target_sample_count)
         output_path = self._output_path()
         print(f"Saving calibration samples to {output_path}")
-        print("Look at the red point and press Enter. Press q or Esc to quit.")
+        print("Look at the red point and press Enter to start sampling. Press q or Esc to quit.")
 
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
         cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         target_index = 0
+        sampling = False
         try:
             while target_index < len(self.targets):
                 ok, frame = capture.read()
@@ -83,23 +85,30 @@ class CalibrationCollector:
 
                 tracker.estimate(frame)
                 sample = tracker.last_sample()
-                if sample is not None:
+                if sampling and sample is not None:
                     raw_history.append(sample)
+                    if len(raw_history) >= target_sample_count:
+                        self._append_sample(output_path, self.targets[target_index], raw_history)
+                        print(f"Captured {self.targets[target_index].name}")
+                        raw_history.clear()
+                        target_index += 1
+                        sampling = False
+                        continue
 
-                canvas = self._draw_target(self.targets[target_index], len(raw_history), target_index)
+                canvas = self._draw_target(
+                    self.targets[target_index],
+                    len(raw_history),
+                    target_index,
+                    sampling,
+                )
                 cv2.imshow(self.window_name, canvas)
                 key = cv2.waitKey(1) & 0xFF
 
                 if key in (ord("q"), 27):
                     return 0
-                if key in (10, 13):
-                    if len(raw_history) < max(3, self.config.samples_per_point // 3):
-                        print("No stable eye sample yet; keep face visible and try Enter again.")
-                        continue
-                    self._append_sample(output_path, self.targets[target_index], raw_history)
-                    print(f"Captured {self.targets[target_index].name}")
+                if key in (10, 13) and not sampling:
                     raw_history.clear()
-                    target_index += 1
+                    sampling = True
 
             print(f"Calibration collection complete: {output_path}")
             return 0
@@ -113,16 +122,44 @@ class CalibrationCollector:
         target: TargetPoint,
         buffered_samples: int,
         target_index: int,
+        sampling: bool,
     ) -> np.ndarray:
         canvas = np.zeros((900, 1440, 3), dtype=np.uint8)
         height, width = canvas.shape[:2]
         x = int(target.x * width)
         y = int(target.y * height)
+        target_samples = max(1, self.config.samples_per_point)
+        remaining_samples = max(0, target_samples - buffered_samples)
+        progress = 1.0 - (remaining_samples / target_samples)
         cv2.circle(canvas, (x, y), 18, (0, 0, 255), -1)
         cv2.circle(canvas, (x, y), 30, (0, 0, 180), 3)
+        bar_width = 96
+        bar_height = 8
+        bar_x1 = x - bar_width // 2
+        bar_y1 = y + 44
+        bar_x2 = bar_x1 + bar_width
+        bar_y2 = bar_y1 + bar_height
+        cv2.rectangle(canvas, (bar_x1, bar_y1), (bar_x2, bar_y2), (45, 45, 45), -1)
+        cv2.rectangle(canvas, (bar_x1, bar_y1), (bar_x2, bar_y2), (0, 120, 0), 1)
+        cv2.rectangle(
+            canvas,
+            (bar_x1, bar_y1),
+            (int(bar_x1 + bar_width * progress), bar_y2),
+            (0, 220, 0),
+            -1,
+        )
         cv2.putText(
             canvas,
-            "Focus red point, press Enter",
+            f"n={remaining_samples}",
+            (bar_x1, bar_y2 + 28),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.75,
+            (0, 220, 0),
+            2,
+        )
+        cv2.putText(
+            canvas,
+            "Sampling..." if sampling else "Focus red point, press Enter to sample",
             (40, 62),
             cv2.FONT_HERSHEY_SIMPLEX,
             1.2,
@@ -131,7 +168,7 @@ class CalibrationCollector:
         )
         cv2.putText(
             canvas,
-            f"{target.name}  {target_index + 1}/{len(self.targets)}  samples:{buffered_samples}",
+            f"{target.name}  {target_index + 1}/{len(self.targets)}  remaining:{remaining_samples}",
             (40, 112),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.9,

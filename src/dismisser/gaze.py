@@ -13,8 +13,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-from dismisser.types import GazePoint, HeadPose, RawGazeSample
 from dismisser.calibration_model import CalibrationModel
+from dismisser.types import GazePoint, HeadPose, RawGazeSample
 
 
 class GazeTracker(Protocol):
@@ -71,6 +71,7 @@ class MediaPipeGazeTracker:
         self._smoothed: tuple[float, float] | None = None
         self._last_raw: tuple[float, float] | None = None
         self._last_sample: RawGazeSample | None = None
+        self._last_face_landmarks = None
         self._smoothing = smoothing
         self._calibration = calibration
 
@@ -78,9 +79,11 @@ class MediaPipeGazeTracker:
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result = self._mesh.process(image)
         if not result.multi_face_landmarks:
+            self._last_face_landmarks = None
             return None
 
-        landmarks = result.multi_face_landmarks[0].landmark
+        self._last_face_landmarks = result.multi_face_landmarks[0]
+        landmarks = self._last_face_landmarks.landmark
         raw_x = self._eye_ratio(
             landmarks,
             self.LEFT_EYE_OUTER,
@@ -152,6 +155,9 @@ class MediaPipeGazeTracker:
 
     def last_sample(self) -> RawGazeSample | None:
         return self._last_sample
+
+    def last_face_landmarks(self):
+        return self._last_face_landmarks
 
     def close(self) -> None:
         self._mesh.close()

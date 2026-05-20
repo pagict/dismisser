@@ -5,10 +5,11 @@ import time
 import cv2
 
 from dismisser.attention import AttentionDetector
+from dismisser.camera_preview import CameraPreviewWindow
 from dismisser.calibration_model import load_calibration, load_latest_calibration
 from dismisser.config import AppConfig
-from dismisser.gaze_filter import Accela2DConfig, Accela2DGazeFilter
 from dismisser.gaze import MediaPipeGazeTracker
+from dismisser.gaze_filter import Accela2DConfig, Accela2DGazeFilter
 from dismisser.overlay import GazeOverlay
 from dismisser.platform_actions import PyAutoGuiNotificationDismisser
 
@@ -37,6 +38,7 @@ class DismisserApp:
             else None
         )
         self._stop_requested = False
+        self.camera_preview: CameraPreviewWindow | None = None
 
     def run(self) -> int:
         capture = cv2.VideoCapture(self.config.camera_index)
@@ -61,6 +63,8 @@ class DismisserApp:
             f"actions={'enabled' if self.config.enable_actions else 'dry-run'}"
         )
         print("Overlay keys: q/Esc=quit, c=calibrate neutral, r=reset calibration")
+        if self.config.camera_preview:
+            print("Camera preview enabled: q/Esc in preview window also quits")
 
         try:
             if self.config.preview:
@@ -70,10 +74,14 @@ class DismisserApp:
                     on_capture_neutral=self._capture_neutral,
                     on_reset_neutral=self._reset_neutral,
                 )
+                self._open_camera_preview(overlay.screen_size())
                 return overlay.run(lambda: self._process_frame(capture, overlay.update_gaze))
+            self._open_camera_preview(self._detect_screen_size())
             return self._run_headless(capture)
         finally:
             capture.release()
+            if self.camera_preview is not None:
+                self.camera_preview.close()
             if self.gaze_tracker is not None:
                 self.gaze_tracker.close()
             cv2.destroyAllWindows()
@@ -96,6 +104,15 @@ class DismisserApp:
             frame = cv2.flip(frame, 1)
 
         gaze = self.gaze_tracker.estimate(frame) if self.gaze_tracker is not None else None
+        if self.camera_preview is not None:
+            face_landmarks = (
+                self.gaze_tracker.last_face_landmarks()
+                if self.gaze_tracker is not None
+                else None
+            )
+            if self.camera_preview.show(frame, face_landmarks):
+                self._request_stop()
+                return 0
         if self.gaze_filter is not None:
             gaze = self.gaze_filter.update(gaze)
         update_gaze(gaze)
@@ -113,6 +130,22 @@ class DismisserApp:
         if self.config.calibration_path is not None:
             return load_calibration(self.config.calibration_path)
         return load_latest_calibration(self.config.calibration_dir)
+
+    def _open_camera_preview(self, screen_size: tuple[int, int]) -> None:
+        if self.config.camera_preview:
+            self.camera_preview = CameraPreviewWindow(screen_size=screen_size)
+
+    def _detect_screen_size(self) -> tuple[int, int]:
+        try:
+            import tkinter as tk
+
+            root = tk.Tk()
+            root.withdraw()
+            size = root.winfo_screenwidth(), root.winfo_screenheight()
+            root.destroy()
+            return size
+        except Exception:
+            return 1280, 720
 
     def _request_stop(self) -> None:
         self._stop_requested = True

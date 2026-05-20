@@ -18,6 +18,7 @@ class AppConfig:
     dwell_seconds: float = 1.0
     cooldown_seconds: float = 2.5
     preview: bool = True
+    camera_preview: bool = False
     mirror_camera: bool = True
     calibration_path: Path | None = None
     calibration_dir: Path = Path("calibration_samples")

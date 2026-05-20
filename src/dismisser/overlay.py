@@ -99,6 +99,10 @@ class MacOSGazeOverlay:
         self.view.gaze = gaze
         self.view.setNeedsDisplay_(True)
 
+    def screen_size(self) -> tuple[int, int]:
+        frame = self.view.bounds()
+        return int(frame.size.width), int(frame.size.height)
+
     def close(self) -> None:
         if self._closed:
             return
@@ -275,6 +279,9 @@ class TkGazeOverlay:
         self.canvas.create_oval(x - 5, y - 5, x + 5, y + 5, fill="#ff2020", outline="", tags="gaze")
         self.canvas.create_line(x - 28, y, x + 28, y, fill="#ff2020", width=2, tags="gaze")
         self.canvas.create_line(x, y - 28, x, y + 28, fill="#ff2020", width=2, tags="gaze")
+
+    def screen_size(self) -> tuple[int, int]:
+        return self.root.winfo_screenwidth(), self.root.winfo_screenheight()
 
     def close(self) -> None:
         if self._closed:

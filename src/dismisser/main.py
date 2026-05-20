@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
         help="Run without the full-screen gaze overlay.",
     )
     parser.add_argument(
+        "--camera-preview",
+        action="store_true",
+        help="Show a small camera diagnostics window with face and eye landmarks.",
+    )
+    parser.add_argument(
         "--no-mirror",
         action="store_true",
         help="Do not horizontally mirror the camera frame.",
@@ -85,6 +90,7 @@ def main() -> int:
         dwell_seconds=args.dwell_seconds,
         cooldown_seconds=args.cooldown_seconds,
         preview=not args.no_preview,
+        camera_preview=args.camera_preview,
         mirror_camera=not args.no_mirror,
         calibration_path=args.calibration,
         calibration_dir=args.calibration_dir,
