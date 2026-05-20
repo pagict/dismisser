@@ -26,7 +26,7 @@ uv pip install -e .
 macOS 需要给终端或 Python 进程授权：
 
 - Camera：摄像头权限
-- Accessibility：仅在使用 `--enable-actions` 时需要
+- Accessibility：使用 `--enable-actions` 或 `--enable-ui-snap` 时需要
 
 ## 运行
 
@@ -58,6 +58,7 @@ dismisser-calibrate
 .venv/bin/python run.py --calibration calibration_samples/gaze-calibration-xxxx.jsonl
 .venv/bin/python run.py --no-gaze-filter
 .venv/bin/python run.py --gaze-filter-deadzone 0.006
+.venv/bin/python run.py --enable-ui-snap --ui-snap-radius-px 80
 .venv/bin/python run.py --enable-actions
 ```
 
@@ -86,6 +87,7 @@ dismisser-calibrate
 - `src/dismisser/gaze_filter.py`：Accela 风格输出滤波
 - `src/dismisser/overlay.py`：屏幕透明 overlay
 - `src/dismisser/platform_actions.py`：平台通知取消动作
+- `src/dismisser/ui_snap.py`：macOS Accessibility / Windows UI Automation gaze 吸附
 
 后续替换方向：
 
@@ -93,9 +95,12 @@ dismisser-calibrate
 - 用 macOS Accessibility/UserNotifications 或 Windows UIAutomation 替换鼠标模拟。
 - 把校准点绘制也迁移到同一个真实屏幕 overlay，以减少 OpenCV fullscreen 的坐标误差。
 
+可选的 UI 吸附通过 `--enable-ui-snap` 开启。它会在滤波后的 gaze 点附近做系统 accessibility hit-test，把 gaze 吸附到最近可用控件的中心；默认关闭，效果取决于目标应用是否暴露准确的 accessibility bounds。
+
 ## 当前限制
 
 - 普通摄像头 gaze 精度有限，强依赖摄像头位置、光照和眼镜反光。
 - 校准数据绑定当前用户、屏幕、摄像头位置。
 - macOS 当前通过指针拖拽模拟取消通知。
 - Windows 当前只是占位式 tray hover/escape 行为，需要后续原生实现。
+- 自绘、Canvas 或游戏类 UI 可能只暴露很粗的 accessibility 容器，UI 吸附会不稳定。

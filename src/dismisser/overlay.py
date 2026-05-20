@@ -16,12 +16,25 @@ class GazeOverlay:
         on_quit: Callable[[], None],
         on_capture_neutral: Callable[[], None],
         on_reset_neutral: Callable[[], None],
+        passthrough: bool = False,
     ):
         if cls is not GazeOverlay:
             return super().__new__(cls)
         if platform_module.system().lower() == "darwin":
-            return MacOSGazeOverlay(platform, on_quit, on_capture_neutral, on_reset_neutral)
-        return TkGazeOverlay(platform, on_quit, on_capture_neutral, on_reset_neutral)
+            return MacOSGazeOverlay(
+                platform,
+                on_quit,
+                on_capture_neutral,
+                on_reset_neutral,
+                passthrough=passthrough,
+            )
+        return TkGazeOverlay(
+            platform,
+            on_quit,
+            on_capture_neutral,
+            on_reset_neutral,
+            passthrough=passthrough,
+        )
 
 
 class MacOSGazeOverlay:
@@ -31,6 +44,7 @@ class MacOSGazeOverlay:
         on_quit: Callable[[], None],
         on_capture_neutral: Callable[[], None],
         on_reset_neutral: Callable[[], None],
+        passthrough: bool = False,
     ) -> None:
         from AppKit import (
             NSApp,
@@ -70,6 +84,12 @@ class MacOSGazeOverlay:
         self.window.setOpaque_(False)
         self.window.setBackgroundColor_(NSColor.clearColor())
         self.window.setIgnoresMouseEvents_(True)
+        if passthrough:
+            for obj in (self.window, self.view):
+                try:
+                    obj.setAccessibilityElement_(False)
+                except Exception:
+                    pass
         self.window.setCollectionBehavior_(
             NSWindowCollectionBehaviorCanJoinAllSpaces
             | NSWindowCollectionBehaviorFullScreenAuxiliary
@@ -220,6 +240,7 @@ class TkGazeOverlay:
         on_quit: Callable[[], None],
         on_capture_neutral: Callable[[], None],
         on_reset_neutral: Callable[[], None],
+        passthrough: bool = False,
     ) -> None:
         import tkinter as tk
 
@@ -248,6 +269,8 @@ class TkGazeOverlay:
         self.root.bind("<c>", self._capture_neutral)
         self.root.bind("<r>", self._reset_neutral)
         self.root.protocol("WM_DELETE_WINDOW", self._quit)
+        if passthrough:
+            self.root.after(0, self._configure_click_through)
         self.root.after(0, self._draw_static)
 
     def run(self, tick: Callable[[], int | None]) -> int:
@@ -320,6 +343,20 @@ class TkGazeOverlay:
             self.root.attributes("-transparentcolor", "#010101")
         except self.tk.TclError:
             self.root.attributes("-alpha", 0.55)
+
+    def _configure_click_through(self) -> None:
+        if platform_module.system().lower() != "windows":
+            return
+        try:
+            import ctypes
+
+            hwnd = self.root.winfo_id()
+            get_window_long = ctypes.windll.user32.GetWindowLongW
+            set_window_long = ctypes.windll.user32.SetWindowLongW
+            exstyle = get_window_long(hwnd, -20)
+            set_window_long(hwnd, -20, exstyle | 0x00000020 | 0x00080000)
+        except Exception as exc:
+            print(f"Unable to make overlay click-through: {exc}")
 
     def _quit(self, _event=None) -> None:
         self.on_quit()

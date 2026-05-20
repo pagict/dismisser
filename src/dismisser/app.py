@@ -12,6 +12,7 @@ from dismisser.gaze import MediaPipeGazeTracker
 from dismisser.gaze_filter import Accela2DConfig, Accela2DGazeFilter
 from dismisser.overlay import GazeOverlay
 from dismisser.platform_actions import PyAutoGuiNotificationDismisser
+from dismisser.ui_snap import UiElementSnapper
 
 
 class DismisserApp:
@@ -39,6 +40,7 @@ class DismisserApp:
         )
         self._stop_requested = False
         self.camera_preview: CameraPreviewWindow | None = None
+        self.ui_snapper: UiElementSnapper | None = None
 
     def run(self) -> int:
         capture = cv2.VideoCapture(self.config.camera_index)
@@ -60,7 +62,8 @@ class DismisserApp:
         print(
             "Dismisser running "
             f"platform={self.config.platform.value} "
-            f"actions={'enabled' if self.config.enable_actions else 'dry-run'}"
+            f"actions={'enabled' if self.config.enable_actions else 'dry-run'} "
+            f"ui_snap={'enabled' if self.config.ui_snap else 'disabled'}"
         )
         print("Overlay keys: q/Esc=quit, c=calibrate neutral, r=reset calibration")
         if self.config.camera_preview:
@@ -73,10 +76,15 @@ class DismisserApp:
                     on_quit=self._request_stop,
                     on_capture_neutral=self._capture_neutral,
                     on_reset_neutral=self._reset_neutral,
+                    passthrough=self.config.ui_snap,
                 )
-                self._open_camera_preview(overlay.screen_size())
+                screen_size = overlay.screen_size()
+                self._configure_ui_snapper(screen_size)
+                self._open_camera_preview(screen_size)
                 return overlay.run(lambda: self._process_frame(capture, overlay.update_gaze))
-            self._open_camera_preview(self._detect_screen_size())
+            screen_size = self._detect_screen_size()
+            self._configure_ui_snapper(screen_size)
+            self._open_camera_preview(screen_size)
             return self._run_headless(capture)
         finally:
             capture.release()
@@ -115,6 +123,8 @@ class DismisserApp:
                 return 0
         if self.gaze_filter is not None:
             gaze = self.gaze_filter.update(gaze)
+        if self.ui_snapper is not None:
+            gaze = self.ui_snapper.update(gaze)
         update_gaze(gaze)
         event = self.attention.update(gaze)
         if event is not None:
@@ -146,6 +156,22 @@ class DismisserApp:
             return size
         except Exception:
             return 1280, 720
+
+    def _configure_ui_snapper(self, screen_size: tuple[int, int]) -> None:
+        if not self.config.ui_snap:
+            self.ui_snapper = None
+            return
+        self.ui_snapper = UiElementSnapper(
+            self.config.platform,
+            screen_size,
+            radius_px=self.config.ui_snap_radius_px,
+            refresh_seconds=self.config.ui_snap_refresh_seconds,
+        )
+        print(
+            "UI snap configured "
+            f"radius={self.config.ui_snap_radius_px}px "
+            f"refresh={self.config.ui_snap_refresh_seconds:.3f}s"
+        )
 
     def _request_stop(self) -> None:
         self._stop_requested = True

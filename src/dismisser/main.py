@@ -74,6 +74,23 @@ def parse_args() -> argparse.Namespace:
         help="Normalized gaze deadzone for output stabilization.",
     )
     parser.add_argument(
+        "--enable-ui-snap",
+        action="store_true",
+        help="Snap gaze to nearby OS accessibility/UI Automation elements.",
+    )
+    parser.add_argument(
+        "--ui-snap-radius-px",
+        type=int,
+        default=80,
+        help="Maximum pixel distance from gaze to an accessibility element before snapping.",
+    )
+    parser.add_argument(
+        "--ui-snap-refresh-seconds",
+        type=float,
+        default=0.10,
+        help="Minimum seconds between accessibility hit-test refreshes.",
+    )
+    parser.add_argument(
         "--enable-actions",
         action="store_true",
         help="Actually move the pointer and attempt dismissal.",
@@ -97,6 +114,9 @@ def main() -> int:
         gaze_filter=not args.no_gaze_filter,
         gaze_filter_smoothing=args.gaze_filter_smoothing,
         gaze_filter_deadzone=args.gaze_filter_deadzone,
+        ui_snap=args.enable_ui_snap,
+        ui_snap_radius_px=args.ui_snap_radius_px,
+        ui_snap_refresh_seconds=args.ui_snap_refresh_seconds,
         enable_actions=args.enable_actions,
     )
     from dismisser.app import DismisserApp

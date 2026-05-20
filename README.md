@@ -24,7 +24,7 @@ uv pip install -e .
 On macOS, grant Terminal or the Python executable:
 
 - Camera permission
-- Accessibility permission, only needed when running with `--enable-actions`
+- Accessibility permission, needed when running with `--enable-actions` or `--enable-ui-snap`
 
 ## Run
 
@@ -87,6 +87,7 @@ dismisser --calibration-dir calibration_samples
 dismisser --no-mirror
 dismisser --no-gaze-filter
 dismisser --gaze-filter-deadzone 0.006
+dismisser --enable-ui-snap --ui-snap-radius-px 80
 dismisser --no-preview --enable-actions
 ```
 
@@ -109,6 +110,8 @@ Windows target area: bottom-right system tray/notification icon area.
 
 The MVP uses heuristic gaze estimation from FaceMesh iris landmarks. It is good enough to validate the interaction loop, but it is not precision eye tracking. For production, replace `dismisser.gaze.MediaPipeGazeTracker` with a calibrated native tracker and replace `dismisser.platform_actions.PyAutoGuiNotificationDismisser` with native OS automation.
 
+Optional UI snapping is available with `--enable-ui-snap`. It uses macOS Accessibility or Windows UI Automation hit-testing around the filtered gaze point, then moves the displayed/dwell gaze point to the center of the best nearby control. It is off by default and depends on the target app exposing useful accessibility bounds.
+
 The head-pose and stabilization path follows the same broad architecture as FOXTracker: estimate face pose separately from raw eye direction, remap through calibration, then stabilize the output with an Accela-style deadzone/smoothing filter. This MVP uses MediaPipe landmarks plus OpenCV `solvePnP` instead of FOXTracker's heavier FSA-Net/ONNX/Qt pipeline.
 
 ## Handoff Notes
@@ -120,6 +123,7 @@ The head-pose and stabilization path follows the same broad architecture as FOXT
 - Gaze estimation: `src/dismisser/gaze.py`.
 - Screen overlay: `src/dismisser/overlay.py`.
 - Pointer-based dismissal backend: `src/dismisser/platform_actions.py`.
+- Accessibility/UI Automation gaze snapping: `src/dismisser/ui_snap.py`.
 
 Known limitations:
 
@@ -127,3 +131,4 @@ Known limitations:
 - Current calibration is per-user and per-camera-position.
 - macOS dismissal currently simulates a top-right swipe; a production version should use native notification APIs or Accessibility automation.
 - Windows behavior is a placeholder hover/escape action and needs Win32/UIAutomation work.
+- UI snapping quality depends on each target app's accessibility tree; custom canvas/game UIs may expose only coarse containers.

@@ -25,6 +25,9 @@ class AppConfig:
     gaze_filter: bool = True
     gaze_filter_smoothing: float = 0.055
     gaze_filter_deadzone: float = 0.006
+    ui_snap: bool = False
+    ui_snap_radius_px: int = 80
+    ui_snap_refresh_seconds: float = 0.10
     enable_actions: bool = False
 
 
